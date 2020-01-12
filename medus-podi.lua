@@ -46,6 +46,7 @@ function Graph.new(n, edges)
         local v1 = self.vertices[edge[1]]
         local v2 = self.vertices[edge[2]]
         table.insert(self.edges, Edge.new(v1, v2))
+        table.insert(self.edges, Edge.new(v2, v1))
     end
 
     return self
@@ -67,6 +68,7 @@ function drawGraph(graph, filename)
         local v1 = edge.vIn
         local v2 = edge.vOut
         local e = gv.edge(nodes[v1.idx], nodes[v2.idx])
+        gv.setv(e, "dir", "forward")
     end
 
     gv.layout(g, "neato")
