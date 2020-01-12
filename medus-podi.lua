@@ -1,4 +1,7 @@
-local gv = require "gv"
+gvEnabled = false
+if gvEnabled then
+    gv = require "gv"
+end
 
 local nullptr = setmetatable({}, {
     __index = function() error("Attempt to index nullptr") end;
@@ -15,7 +18,7 @@ function Queue.new(init)
     }, Queue)
 
     if init and type(init) == "table" and #init > 0 then
-        self.items = {unpack(init)}
+        self.items = {table.unpack(init)}
         self.last = #self.items + 1
         self.first = 1
     end
@@ -229,6 +232,8 @@ Graph.__newindex = function() error("Attempt to assign new attribute to instance
 -- Utilities
 
 function drawGraph(graph, filename)
+    if not gvEnabled then error("Graphviz support is not enabled") end
+        
     local g = gv.graph(filename)
     local nodes = {}
 
@@ -312,7 +317,9 @@ function main()
     readInputFile("input.dat")
     local G = Graph.new(readInputFile("input.dat"))
 
-    drawGraph(G, "before")
+    if gvEnabled then
+        drawGraph(G, "before")
+    end
 
     local vPairs = G:DoubleVertices()
     G:MaximizeFlow()
@@ -324,8 +331,10 @@ function main()
             table.insert(result, vPair[1].idx)
         end
     end
-   
-    drawGraph(G, "after")
+
+    if gvEnabled then
+        drawGraph(G, "after")
+    end
     print(#result, table.unpack(result))
 end
 main()
