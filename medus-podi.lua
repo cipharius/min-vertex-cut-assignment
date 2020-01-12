@@ -115,17 +115,23 @@ function Graph:AddEdge(v1, v2)
     
     table.insert(v1.eOut, e1)
     table.insert(v1.eIn, e2)
-    table.insert(v2.eIn, e2)
-    table.insert(v2.eOut, e1)
+    table.insert(v2.eIn, e1)
+    table.insert(v2.eOut, e2)
     
     table.insert(self.edges, e1)
     table.insert(self.edges, e2)
+
+    return e1, e2
 end
 
 function Graph:UpdateDists(notLimited)
+    for _,vertex in pairs(self.vertices) do
+        vertex.dist = math.huge
+        vertex.parent = nullptr
+    end
     self.source.dist = 0
+    
     local queue = Queue.new({self.source})
-
     while not queue:IsEmpty() do
         local v = queue:Pop()
 
@@ -151,25 +157,65 @@ function Graph:DoubleVertices()
         local v2 = Vertex.new(n+i-1)
         v2.dist = v1.dist
 
-        local outbound = {}
-        for i=1,#v1.eOut do
-            if v1.eOut[i].vOut.dist > v1.dist then
-                outbound[#outbound+1] = i
+        local inbound = {}
+        for i=#v1.eIn,1,-1 do
+            if v1.eIn[i].vIn.dist > v1.dist then
+                inbound[#inbound+1] = v1.eIn[i]
+                v1.eIn[i] = v1.eIn[#v1.eIn]
+                v1.eIn[#v1.eIn] = nil
             end
         end
 
-        for i=#outbound,1,-1 do
-            local edge = v1.eOut[i]
-            v1.eOut[i] = v1.eOut[#v1.eOut]
-            v1.eOut[#v1.eOut] = nil
-            table.insert(v2.eOut, edge)
+        local outbound = {}
+        for i=#v1.eOut,1,-1 do
+            if v1.eOut[i].vOut.dist > v1.dist then
+                outbound[#outbound+1] = v1.eOut[i]
+                v1.eOut[i] = v1.eOut[#v1.eOut]
+                v1.eOut[#v1.eOut] = nil
+            end
+        end
+
+        for _,edge in pairs(inbound) do
+            table.insert(v2.eIn, edge)
             edge.vOut = v2
-            edge.reverse.vIn = v2
+        end
+
+        for _,edge in pairs(outbound) do
+            table.insert(v2.eOut, edge)
+            edge.vIn = v2
         end
 
         table.insert(self.vertices, v2)
 
-        self:AddEdge(v1, v2)
+        local e1,e2 = self:AddEdge(v1, v2)
+        e1.capacity = 1
+        e2.capacity = 1
+    end
+end
+
+function Graph:SendFlow(v)
+    if v == self.sink then return 1 end
+    
+    for _,edge in pairs(v.eOut) do
+        if edge.capacity > edge.flow and edge.vOut.dist == v.dist + 1 then
+            if self:SendFlow(edge.vOut) > 0 then
+                edge.flow = 1
+                edge.reverse.flow = 0
+                return 1
+            end
+        end
+    end
+    
+    return 0
+end
+
+function Graph:MaximizeFlow()
+    self:UpdateDists()
+
+    while self.sink.dist < math.huge do
+        repeat until self:SendFlow(self.source) == 0
+        drawGraph(self, "step")
+        self:UpdateDists()
     end
 end
 
@@ -183,8 +229,10 @@ function drawGraph(graph, filename)
     local nodes = {}
 
     for _,vertex in pairs(graph.vertices) do
-        table.insert(nodes, gv.node(g, vertex.idx))
-        gv.setv(nodes[#nodes], "xlabel", tostring(vertex.dist))
+        local n = gv.node(g, vertex.idx)
+        gv.setv(n, "xlabel", tostring(vertex.dist))
+        gv.setv(n, "shape", "circle")
+        table.insert(nodes, n)
     end
 
     for _,edge in pairs(graph.edges) do
@@ -192,10 +240,32 @@ function drawGraph(graph, filename)
         local v2 = edge.vOut
         local e = gv.edge(nodes[v1.idx], nodes[v2.idx])
         gv.setv(e, "dir", "forward")
+        gv.setv(e, "label", tostring(edge.capacity - edge.flow))
     end
 
     gv.layout(g, "neato")
     gv.render(g, "pdf", filename..".pdf")
+end
+
+function printTable(t, maxDepth, depth)
+    local maxDepth = maxDepth or 3
+    local depth = depth or 0
+    local indent = ("  "):rep(depth)
+    
+    for k,v in pairs(t) do
+        if type(v) == "table" then
+            if depth == maxDepth then
+                print(indent..tostring(k)..": "..tostring(t).."; len="..#t)
+            elseif next(v) == nil then
+                print(indent..tostring(k)..": {}")
+            else
+                print(indent..tostring(k)..":")
+                printTable(v, maxDepth, depth+1)
+            end
+        else
+            print(indent..tostring(k)..": "..tostring(v))
+        end
+    end
 end
 
 function readInputFile(filename)
@@ -223,7 +293,8 @@ function main()
     drawGraph(G, "before")
 
     G:DoubleVertices()
-    
+    G:MaximizeFlow()
+   
     drawGraph(G, "after")
 end
 main()
