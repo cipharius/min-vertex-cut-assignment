@@ -1,3 +1,54 @@
+local nullptr = {}
+
+-- Vertex class
+local Vertex = {}
+function Vertex.new(idx)
+    return setmetatable({
+        idx = idx;
+        dist = math.huge;
+        owner = nullptr;
+        eIn = {};
+        eOut = {};
+    }, Vertex)
+end
+Vertex.__newindex = function() error("Attempt to assign new attribute to instance of Vertex") end
+
+-- Edge class
+local Edge = {}
+function Edge.new(v1, v2)
+    return setmetatable({
+        vIn = v1;
+        vOut = v2;
+        flow = 0;
+        capacity = math.huge;
+        reverse = nullptr;
+    }, Edge)
+end
+Edge.__newindex = function() error("Attempt to assign new attribute to instance of Edge") end
+
+-- Graph class
+local Graph = {}
+function Graph.new(n, edges)
+    local self = setmetatable({
+        vertices = {};
+        edges = {};
+    }, Graph)
+
+    -- Create vertices
+    for i=1,n do
+        table.insert(self.vertices, Vertex.new(i))
+    end
+
+    -- Create edges
+    for _,edge in pairs(edges) do
+        table.insert(self.edges, Edge.new(edge[1], edge[2]))
+    end
+
+    return self
+end
+Graph.__index = Graph
+Graph.__newindex = function() error("Attempt to assign new attribute to instance of Graph") end
+
 function readInputFile(filename)
     local file = io.open(filename)
     if not file then error("Couldn't open file \""..filename.."\"") end
@@ -18,6 +69,6 @@ end
 
 function main()
     readInputFile("input.dat")
-    --local G = Graph.new(readInputFile("input.dat"))
+    local G = Graph.new(readInputFile("input.dat"))
 end
 main()
