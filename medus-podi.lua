@@ -43,7 +43,9 @@ function Graph.new(n, edges)
 
     -- Create edges
     for _,edge in pairs(edges) do
-        table.insert(self.edges, Edge.new(edge[1], edge[2]))
+        local v1 = self.vertices[edge[1]]
+        local v2 = self.vertices[edge[2]]
+        table.insert(self.edges, Edge.new(v1, v2))
     end
 
     return self
