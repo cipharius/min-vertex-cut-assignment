@@ -1,3 +1,5 @@
+local gv = require "gv"
+
 local nullptr = {}
 
 -- Vertex class
@@ -49,6 +51,26 @@ end
 Graph.__index = Graph
 Graph.__newindex = function() error("Attempt to assign new attribute to instance of Graph") end
 
+-- Utilities
+
+function drawGraph(graph, filename)
+    local g = gv.graph(filename)
+    local nodes = {}
+
+    for _,vertex in pairs(graph.vertices) do
+        table.insert(nodes, gv.node(g, vertex.idx))
+    end
+
+    for _,edge in pairs(graph.edges) do
+        local v1 = edge.vIn
+        local v2 = edge.vOut
+        local e = gv.edge(nodes[v1.idx], nodes[v2.idx])
+    end
+
+    gv.layout(g, "neato")
+    gv.render(g, "pdf", filename..".pdf")
+end
+
 function readInputFile(filename)
     local file = io.open(filename)
     if not file then error("Couldn't open file \""..filename.."\"") end
@@ -70,5 +92,7 @@ end
 function main()
     readInputFile("input.dat")
     local G = Graph.new(readInputFile("input.dat"))
+
+    drawGraph(G, "before")
 end
 main()
