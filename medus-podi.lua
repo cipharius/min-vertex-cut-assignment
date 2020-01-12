@@ -58,6 +58,7 @@ function Vertex.new(idx)
     return setmetatable({
         idx = idx;
         dist = math.huge;
+        parent = nullptr;
         owner = nullptr;
         eIn = {};
         eOut = {};
@@ -84,23 +85,94 @@ function Graph.new(n, edges)
     local self = setmetatable({
         vertices = {};
         edges = {};
+        source = nullptr;
+        sink = nullptr;
     }, Graph)
 
     -- Create vertices
     for i=1,n do
         table.insert(self.vertices, Vertex.new(i))
     end
+    self.source = self.vertices[1]
+    self.sink = self.vertices[n]
 
     -- Create edges
     for _,edge in pairs(edges) do
         local v1 = self.vertices[edge[1]]
         local v2 = self.vertices[edge[2]]
-        table.insert(self.edges, Edge.new(v1, v2))
-        table.insert(self.edges, Edge.new(v2, v1))
+        self:AddEdge(v1, v2)
     end
 
     return self
 end
+
+function Graph:AddEdge(v1, v2)
+    local e1 = Edge.new(v1, v2)
+    local e2 = Edge.new(v2, v1)
+
+    e1.reverse = e2
+    e2.reverse = e1
+    
+    table.insert(v1.eOut, e1)
+    table.insert(v1.eIn, e2)
+    table.insert(v2.eIn, e2)
+    table.insert(v2.eOut, e1)
+    
+    table.insert(self.edges, e1)
+    table.insert(self.edges, e2)
+end
+
+function Graph:UpdateDists(notLimited)
+    self.source.dist = 0
+    local queue = Queue.new({self.source})
+
+    while not queue:IsEmpty() do
+        local v = queue:Pop()
+
+        for _,edge in pairs(v.eOut) do
+            local vNext = edge.vOut
+            local residual = edge.capacity - edge.flow
+            
+            if (notLimited or residual > 0) and vNext.dist > v.dist then
+                vNext.parent = v
+                vNext.dist = v.dist + 1
+                queue:Push(vNext)
+            end
+        end
+    end
+end
+
+function Graph:DoubleVertices()
+    self:UpdateDists(true)
+    local n = #self.vertices
+
+    for i=2,n-1 do
+        local v1 = self.vertices[i]
+        local v2 = Vertex.new(n+i-1)
+        v2.dist = v1.dist
+
+        local outbound = {}
+        for i=1,#v1.eOut do
+            if v1.eOut[i].vOut.dist > v1.dist then
+                outbound[#outbound+1] = i
+            end
+        end
+
+        for i=#outbound,1,-1 do
+            local edge = v1.eOut[i]
+            v1.eOut[i] = v1.eOut[#v1.eOut]
+            v1.eOut[#v1.eOut] = nil
+            table.insert(v2.eOut, edge)
+            edge.vOut = v2
+            edge.reverse.vIn = v2
+        end
+
+        table.insert(self.vertices, v2)
+
+        self:AddEdge(v1, v2)
+    end
+end
+
 Graph.__index = Graph
 Graph.__newindex = function() error("Attempt to assign new attribute to instance of Graph") end
 
@@ -112,6 +184,7 @@ function drawGraph(graph, filename)
 
     for _,vertex in pairs(graph.vertices) do
         table.insert(nodes, gv.node(g, vertex.idx))
+        gv.setv(nodes[#nodes], "xlabel", tostring(vertex.dist))
     end
 
     for _,edge in pairs(graph.edges) do
@@ -148,5 +221,9 @@ function main()
     local G = Graph.new(readInputFile("input.dat"))
 
     drawGraph(G, "before")
+
+    G:DoubleVertices()
+    
+    drawGraph(G, "after")
 end
 main()
