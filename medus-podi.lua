@@ -1,6 +1,9 @@
 local gv = require "gv"
 
-local nullptr = {}
+local nullptr = setmetatable({}, {
+    __index = function() error("Attempt to index nullptr") end;
+    __newindex = function() error("Attempt to assign to nullptr") end;
+})
 
 -- Queue class
 local Queue = {}
