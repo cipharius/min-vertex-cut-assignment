@@ -151,6 +151,7 @@ end
 function Graph:DoubleVertices()
     self:UpdateDists(true)
     local n = #self.vertices
+    local vPairs = {}
 
     for i=2,n-1 do
         local v1 = self.vertices[i]
@@ -190,7 +191,11 @@ function Graph:DoubleVertices()
         local e1,e2 = self:AddEdge(v1, v2)
         e1.capacity = 1
         e2.capacity = 1
+
+        table.insert(vPairs, {v1, v2})
     end
+
+    return vPairs
 end
 
 function Graph:SendFlow(v)
@@ -214,7 +219,6 @@ function Graph:MaximizeFlow()
 
     while self.sink.dist < math.huge do
         repeat until self:SendFlow(self.source) == 0
-        drawGraph(self, "step")
         self:UpdateDists()
     end
 end
@@ -230,17 +234,35 @@ function drawGraph(graph, filename)
 
     for _,vertex in pairs(graph.vertices) do
         local n = gv.node(g, vertex.idx)
-        gv.setv(n, "xlabel", tostring(vertex.dist))
         gv.setv(n, "shape", "circle")
         table.insert(nodes, n)
     end
+    gv.setv(nodes[graph.source.idx], "color", "blue")
+    gv.setv(nodes[graph.sink.idx], "color", "green")
 
     for _,edge in pairs(graph.edges) do
         local v1 = edge.vIn
         local v2 = edge.vOut
         local e = gv.edge(nodes[v1.idx], nodes[v2.idx])
+
+        if (v1.dist + v2.dist == math.huge) and v1.dist ~= v2.dist then
+            gv.setv(e, "color", "red")
+
+            if v1.dist < math.huge then
+                gv.setv(nodes[v1.idx], "color", "red")
+                gv.setv(nodes[v2.idx], "color", "red")
+            end
+        end
+
+        if edge.capacity == 1 then
+            gv.setv(e, "len", 0.5)
+            
+            if v1.idx < graph.sink.idx then
+                gv.setv(nodes[v2.idx], "label", edge.vIn.idx.."'")
+            end
+        end
+        
         gv.setv(e, "dir", "forward")
-        gv.setv(e, "label", tostring(edge.capacity - edge.flow))
     end
 
     gv.layout(g, "neato")
@@ -292,9 +314,18 @@ function main()
 
     drawGraph(G, "before")
 
-    G:DoubleVertices()
+    local vPairs = G:DoubleVertices()
     G:MaximizeFlow()
+
+    local result = {}
+    for _,vPair in pairs(vPairs) do
+        -- Boundary before blocking flows
+        if vPair[1].dist < math.huge and vPair[2].dist == math.huge then
+            table.insert(result, vPair[1].idx)
+        end
+    end
    
     drawGraph(G, "after")
+    print(#result, table.unpack(result))
 end
 main()
