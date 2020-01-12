@@ -2,6 +2,53 @@ local gv = require "gv"
 
 local nullptr = {}
 
+-- Queue class
+local Queue = {}
+function Queue.new(init)
+    local self = setmetatable({
+        items = {};
+        first = 0;
+        last = 0;
+    }, Queue)
+
+    if init and type(init) == "table" and #init > 0 then
+        self.items = {unpack(init)}
+        self.last = #self.items + 1
+        self.first = 1
+    end
+
+    return self
+end
+
+function Queue:Push(item)
+    self.items[self.last] = item
+    self.last = self.last + 1
+end
+
+function Queue:Pop()
+    if self.first == self.last then
+        return nil
+    end
+    
+    local item = self.items[self.first]
+    self.items[self.first] = nil
+    self.first = self.first + 1
+
+    if self.first == self.last then
+        self.first = 0
+        self.last = 0
+    end
+    
+    return item
+end
+
+function Queue:IsEmpty()
+    return self.first == self.last
+end
+
+Queue.__index = Queue
+Queue.__newindex = function() error("Attempt to assign new attribute to instance of Queue") end
+
 -- Vertex class
 local Vertex = {}
 function Vertex.new(idx)
